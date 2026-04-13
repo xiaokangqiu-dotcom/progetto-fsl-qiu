@@ -1,0 +1,117 @@
+<?php
+
+namespace App\Controller;
+
+use App\Entity\Category;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Routing\Annotation\Route;
+
+// Xiao: Controller principale per la gestione delle API delle categorie
+#[Route('/api', name: 'api_')]
+class CategoryController extends AbstractController
+{
+    #[Route('/categories', name: 'category_create', methods: ['POST'])]
+    public function create(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        // Xiao: Decodifica il JSON ricevuto nella richiesta
+        $data = json_decode($request->getContent(), true);
+
+        // Xiao: Verifica che i campi obbligatori siano presenti (per la categoria serve solo il nome)
+        if (!isset($data['name'])) {
+            return $this->json(['message' => 'Dati mancanti: il nome della categoria è obbligatorio!'], 400);
+        }
+
+        // Xiao: Istanzia una nuova categoria e assegna il nome
+        $category = new Category();
+        $category->setName($data['name']);
+
+        // Xiao: Prepara e salva definitivamente la categoria nel database
+        $entityManager->persist($category);
+        $entityManager->flush();
+
+        return $this->json(['message' => 'Categoria creata con successo!', 'id' => $category->getId()], 201);
+    }
+
+    #[Route('/categories', name: 'category_list', methods: ['GET'])]
+    public function list(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        // Xiao: Legge i parametri limit e offset dall'URL per la paginazione
+        $limit = $request->query->getInt('limit', 10);
+        $offset = $request->query->getInt('offset', 0);
+
+        // Xiao: Recupera le categorie dal database applicando la paginazione
+        $categories = $entityManager->getRepository(Category::class)->findBy([], null, $limit, $offset);
+        
+        $data = [];
+        // Xiao: Cicla le categorie trovate per formattarle in un array leggibile
+        foreach ($categories as $c) {
+            $data[] = [
+                'id' => $c->getId(),
+                'name' => $c->getName(),
+            ];
+        }
+
+        return $this->json($data);
+    }
+
+    #[Route('/categories/{id}', name: 'category_update', methods: ['PUT', 'PATCH'])]
+    public function update(Request $request, EntityManagerInterface $entityManager, int $id): JsonResponse
+    {
+        // Xiao: Cerca la categoria specifica da aggiornare tramite l'ID
+        $category = $entityManager->getRepository(Category::class)->find($id);
+
+        // Xiao: Se la categoria non esiste, blocca tutto e restituisce errore 404
+        if (!$category) {
+            return $this->json(['message' => 'Categoria non trovata'], 404);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        
+        // Xiao: Aggiorna il nome solo se è stato inviato nel JSON
+        if (isset($data['name'])) {
+            $category->setName($data['name']);
+        }
+
+        // Xiao: Salva le modifiche apportate nel database
+        $entityManager->flush();
+
+        return $this->json(['message' => 'Categoria aggiornata con successo!']);
+    }
+
+    #[Route('/categories/{id}', name: 'category_delete', methods: ['DELETE'])]
+    public function delete(EntityManagerInterface $entityManager, int $id): JsonResponse
+    {
+        // Xiao: Trova la categoria da eliminare
+        $category = $entityManager->getRepository(Category::class)->find($id);
+
+        if (!$category) {
+            return $this->json(['message' => 'Categoria non trovata'], 404);
+        }
+
+        // Xiao: Segnala a Doctrine di eliminare la categoria e applica la modifica
+        $entityManager->remove($category);
+        $entityManager->flush();
+
+        return $this->json(['message' => 'Categoria eliminata!']);
+    }
+    
+    #[Route('/categories/{id}', name: 'category_show', methods: ['GET'])]
+    public function show(EntityManagerInterface $entityManager, int $id): JsonResponse
+    {
+        // Xiao: Recupera i dettagli di una singola categoria usando il suo ID
+        $category = $entityManager->getRepository(Category::class)->find($id);
+
+        if (!$category) {
+            return $this->json(['message' => 'Categoria non trovata'], 404);
+        }
+
+        // Xiao: Restituisce direttamente i dati formattati in JSON
+        return $this->json([
+            'id' => $category->getId(),
+            'name' => $category->getName(),
+        ]);
+    }
+}
