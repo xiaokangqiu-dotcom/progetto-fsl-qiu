@@ -46,6 +46,16 @@ class ProductController extends AbstractController
             $product->setCategory($category);
         }
 
+        // Xiao: CASCADE PERSIST - Se Postman invia una nuova categoria "nidificata"
+        if (isset($data['category']) && isset($data['category']['name'])) {
+            // 1. Creiamo l'oggetto Categoria al volo
+            $newCategory = new Category();
+            $newCategory->setName($data['category']['name']);
+            
+            // 2. Lo assegniamo al prodotto
+            $product->setCategory($newCategory);
+        }
+
         // Xiao: Prepara e salva definitivamente il prodotto nel database
         $entityManager->persist($product);
         $entityManager->flush();
