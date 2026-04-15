@@ -38,15 +38,21 @@ class CategoryController extends AbstractController
     #[Route('/categories', name: 'category_list', methods: ['GET'])]
     public function list(Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
-        // Xiao: Legge i parametri limit e offset dall'URL per la paginazione
-        $limit = $request->query->getInt('limit', 10);
-        $offset = $request->query->getInt('offset', 0);
+        // Xiao: Leggiamo la pagina attuale (default 1) e quanti elementi per pagina (default 5)
+        $page = $request->query->getInt('page', 1);
+        $limit = $request->query->getInt('limit', 5);
+        $offset = ($page - 1) * $limit;
 
-        // Xiao: Recupera le categorie dal database applicando la paginazione
-        $categories = $entityManager->getRepository(Category::class)->findBy([], null, $limit, $offset);
+        $repository = $entityManager->getRepository(Category::class);
         
+        // Xiao: Recuperiamo le categorie paginate
+        $categories = $repository->findBy([], null, $limit, $offset);
+        
+        // Xiao: Contiamo quante categorie totali esistono nel database
+        $totalItems = $repository->count([]);
+        $totalPages = ceil($totalItems / $limit);
+
         $data = [];
-        // Xiao: Cicla le categorie trovate per formattarle in un array leggibile
         foreach ($categories as $c) {
             $data[] = [
                 'id' => $c->getId(),
@@ -54,7 +60,16 @@ class CategoryController extends AbstractController
             ];
         }
 
-        return $this->json($data);
+        // Xiao: Restituiamo i dati E le informazioni della paginazione (Meta-dati)
+        return $this->json([
+            'data' => $data,
+            'meta' => [
+                'current_page' => $page,
+                'items_per_page' => $limit,
+                'total_items' => $totalItems,
+                'total_pages' => $totalPages
+            ]
+        ]);
     }
 
     #[Route('/categories/{id}', name: 'category_update', methods: ['PUT', 'PATCH'])]

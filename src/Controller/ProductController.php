@@ -66,26 +66,34 @@ class ProductController extends AbstractController
     #[Route('/products', name: 'product_list', methods: ['GET'])]
     public function list(Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
-        // Xiao: Legge i parametri limit e offset dall'URL per la paginazione
+        $page = $request->query->getInt('page', 1);
         $limit = $request->query->getInt('limit', 10);
-        $offset = $request->query->getInt('offset', 0);
+        $offset = ($page - 1) * $limit;
 
-        // Xiao: Recupera i prodotti dal database applicando la paginazione
-        $products = $entityManager->getRepository(Product::class)->findBy([], null, $limit, $offset);
+        $repository = $entityManager->getRepository(Product::class);
+        $products = $repository->findBy([], null, $limit, $offset);
         
+        $totalItems = $repository->count([]);
+        $totalPages = ceil($totalItems / $limit);
+
         $data = [];
-        // Xiao: Cicla i prodotti trovati per formattarli in un array leggibile
         foreach ($products as $p) {
             $data[] = [
                 'id' => $p->getId(),
                 'name' => $p->getName(),
                 'price' => $p->getPrice(),
-                // Xiao: NUOVO - Mostra il nome della categoria se esiste, altrimenti null
                 'category' => $p->getCategory() ? $p->getCategory()->getName() : null,
             ];
         }
 
-        return $this->json($data);
+        return $this->json([
+            'items' => $data,
+            'pagination' => [
+                'current_page' => $page,
+                'total_pages' => $totalPages,
+                'total_items' => $totalItems
+            ]
+        ]);
     }
 
     #[Route('/products/{id}', name: 'product_update', methods: ['PUT', 'PATCH'])]
