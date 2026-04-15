@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Product;
+use App\Entity\Category; // Xiao: Importata l'entità Category per poterla utilizzare
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -34,6 +35,17 @@ class ProductController extends AbstractController
         $product->setName($data['name']);
         $product->setPrice($data['price']);
 
+        // Xiao: Se Postman invia un category_id, cerca la categoria e collegala al prodotto
+        if (isset($data['category_id'])) {
+            $category = $entityManager->getRepository(Category::class)->find($data['category_id']);
+            
+            if (!$category) {
+                return $this->json(['message' => 'Errore: Categoria non trovata!'], 404);
+            }
+            
+            $product->setCategory($category);
+        }
+
         // Xiao: Prepara e salva definitivamente il prodotto nel database
         $entityManager->persist($product);
         $entityManager->flush();
@@ -58,6 +70,8 @@ class ProductController extends AbstractController
                 'id' => $p->getId(),
                 'name' => $p->getName(),
                 'price' => $p->getPrice(),
+                // Xiao: NUOVO - Mostra il nome della categoria se esiste, altrimenti null
+                'category' => $p->getCategory() ? $p->getCategory()->getName() : null,
             ];
         }
 
@@ -84,6 +98,17 @@ class ProductController extends AbstractController
         // Xiao: Aggiorna il prezzo solo se è stato inviato nel JSON
         if (isset($data['price'])) {
             $product->setPrice($data['price']);
+        }
+
+        // Xiao: Aggiorna la categoria se viene inviato un nuovo category_id
+        if (isset($data['category_id'])) {
+            $category = $entityManager->getRepository(Category::class)->find($data['category_id']);
+            
+            if (!$category) {
+                return $this->json(['message' => 'Errore: Nuova categoria non trovata!'], 404);
+            }
+            
+            $product->setCategory($category);
         }
 
         // Xiao: Salva le modifiche apportate nel database
@@ -124,6 +149,7 @@ class ProductController extends AbstractController
             'id' => $product->getId(),
             'name' => $product->getName(),
             'price' => $product->getPrice(),
+            'category' => $product->getCategory() ? $product->getCategory()->getName() : null,
         ]);
     }
 }
