@@ -60,7 +60,7 @@ class CategoryController extends AbstractController
             ];
         }
 
-        // Xiao: Restituiamo i dati E le informazioni della paginazione (Meta-dati)
+        // Xiao: Restituiamo i dati e le informazioni della paginazione (Meta-dati)
         return $this->json([
             'data' => $data,
             'meta' => [
